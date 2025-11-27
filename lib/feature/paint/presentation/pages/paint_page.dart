@@ -1,11 +1,11 @@
-import 'dart:ui' as ui;
-import 'dart:typed_data';
 import 'dart:math' as math;
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import 'package:sketchify/feature/paint/presentation/theme/text_styles.dart';
 
 enum ShapeType { brush, line, rect, circle, arrow, hexagon, star }
 
@@ -56,38 +56,42 @@ class CanvasState {
     double? strokeWidth,
     ShapeType? selectedTool,
     CanvasAction? preview,
-  }) =>
-      CanvasState(
-        actions: actions ?? this.actions,
-        selectedIndices: selectedIndices ?? this.selectedIndices,
-        selectionRect: selectionRect ?? this.selectionRect,
-        selectedColor: selectedColor ?? this.selectedColor,
-        strokeWidth: strokeWidth ?? this.strokeWidth,
-        selectedTool: selectedTool ?? this.selectedTool,
-        preview: preview,
-      );
+  }) => CanvasState(
+    actions: actions ?? this.actions,
+    selectedIndices: selectedIndices ?? this.selectedIndices,
+    selectionRect: selectionRect ?? this.selectionRect,
+    selectedColor: selectedColor ?? this.selectedColor,
+    strokeWidth: strokeWidth ?? this.strokeWidth,
+    selectedTool: selectedTool ?? this.selectedTool,
+    preview: preview,
+  );
 
   CanvasState.initial()
-      : actions = [],
-        selectedIndices = [],
-        selectionRect = null,
-        selectedColor = Colors.black,
-        strokeWidth = 3,
-        selectedTool = ShapeType.brush,
-        preview = null;
+    : actions = [],
+      selectedIndices = [],
+      selectionRect = null,
+      selectedColor = Colors.black,
+      strokeWidth = 3,
+      selectedTool = ShapeType.brush,
+      preview = null;
 }
 
 class CanvasNotifier extends StateNotifier<CanvasState> {
   CanvasNotifier() : super(CanvasState.initial());
 
-  void selectTool(ShapeType tool) =>
-      state = state.copyWith(selectedTool: tool, selectionRect: null, selectedIndices: []);
+  void selectTool(ShapeType tool) => state = state.copyWith(
+    selectedTool: tool,
+    selectionRect: null,
+    selectedIndices: [],
+  );
 
   void selectColor(Color color) => state = state.copyWith(selectedColor: color);
 
-  void setStrokeWidth(double width) => state = state.copyWith(strokeWidth: width);
+  void setStrokeWidth(double width) =>
+      state = state.copyWith(strokeWidth: width);
 
-  void addPreview(CanvasAction action) => state = state.copyWith(preview: action);
+  void addPreview(CanvasAction action) =>
+      state = state.copyWith(preview: action);
 
   void commitPreview() {
     if (state.preview != null) {
@@ -99,12 +103,22 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   void undo() {
     if (state.actions.isEmpty) return;
     final newActions = [...state.actions]..removeLast();
-    state = state.copyWith(actions: newActions, selectedIndices: [], selectionRect: null);
+    state = state.copyWith(
+      actions: newActions,
+      selectedIndices: [],
+      selectionRect: null,
+    );
   }
 
-  void clearAll() => state = state.copyWith(actions: [], selectedIndices: [], selectionRect: null);
+  void clearAll() => state = state.copyWith(
+    actions: [],
+    selectedIndices: [],
+    selectionRect: null,
+  );
 
-  void startSelection(Offset pos) => state = state.copyWith(selectionRect: Rect.fromLTWH(pos.dx, pos.dy, 0, 0));
+  void startSelection(Offset pos) => state = state.copyWith(
+    selectionRect: Rect.fromLTWH(pos.dx, pos.dy, 0, 0),
+  );
 
   void updateSelection(Offset pos) {
     final sel = state.selectionRect!;
@@ -112,7 +126,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     final top = math.min(sel.top, pos.dy);
     final right = math.max(sel.right, pos.dx);
     final bottom = math.max(sel.bottom, pos.dy);
-    state = state.copyWith(selectionRect: Rect.fromLTRB(left, top, right, bottom));
+    state = state.copyWith(
+      selectionRect: Rect.fromLTRB(left, top, right, bottom),
+    );
   }
 
   void finishSelection() {
@@ -153,7 +169,13 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         final newPoints = a.points.map((p) => p + delta).toList();
         actions[idx] = StrokeAction(newPoints, a.color, a.strokeWidth);
       } else if (a is ShapeAction) {
-        actions[idx] = ShapeAction(a.type, a.start + delta, a.end + delta, a.color, a.strokeWidth);
+        actions[idx] = ShapeAction(
+          a.type,
+          a.start + delta,
+          a.end + delta,
+          a.color,
+          a.strokeWidth,
+        );
       }
     }
     state = state.copyWith(actions: actions);
@@ -165,7 +187,12 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         .entries
         .where((entry) => !state.selectedIndices.contains(entry.key))
         .map((entry) => entry.value)
-        .toList();    state = state.copyWith(actions: actions, selectedIndices: [], selectionRect: null);
+        .toList();
+    state = state.copyWith(
+      actions: actions,
+      selectedIndices: [],
+      selectionRect: null,
+    );
   }
 
   bool _segmentIntersectsRect(Offset p1, Offset p2, Rect rect) {
@@ -180,7 +207,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 }
 
-final canvasProvider = StateNotifierProvider<CanvasNotifier, CanvasState>((ref) => CanvasNotifier());
+final canvasProvider = StateNotifierProvider<CanvasNotifier, CanvasState>(
+  (ref) => CanvasNotifier(),
+);
 
 class PaintPage extends ConsumerStatefulWidget {
   const PaintPage({super.key});
@@ -197,98 +226,164 @@ class _PaintPageState extends ConsumerState<PaintPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(canvasProvider);
     final notifier = ref.read(canvasProvider.notifier);
-
     return Scaffold(
-      appBar: AppBar(title: const Text("Mini Paint")),
-      body: Column(
-        children: [
-          // Toolbar
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              DropdownButton<ShapeType>(
-                value: state.selectedTool,
-                items: ShapeType.values
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) notifier.selectTool(v);
-                },
-              ),
-              GestureDetector(
-                onTap: () async {
-                  Color pickerColor = state.selectedColor;
-                  await showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Pick color"),
-                        content: SingleChildScrollView(
-                            child: ColorPicker(
+      appBar: AppBar(
+        backgroundColor: Colors.grey,
+        title: Text("Sketchify", style: AppTextStyles.headingH4Medium),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(100.h),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    DropdownButton2<ShapeType>(
+                      buttonStyleData: ButtonStyleData(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black54),
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        width: 120.w,
+                        height: 36.h,
+                        padding: EdgeInsets.symmetric(horizontal: 12.h),
+                      ),
+                      dropdownStyleData: DropdownStyleData(
+                        maxHeight: 180.h,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                      ),
+                      underline: const SizedBox(),
+                      isExpanded: true,
+                      value: state.selectedTool,
+                      items: ShapeType.values
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(
+                                e.name,
+                                style: AppTextStyles.labelL5Medium.copyWith(
+                                  color: state.selectedColor,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) notifier.selectTool(v);
+                      },
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        Color pickerColor = state.selectedColor;
+                        await showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text("Pick color"),
+                            content: SingleChildScrollView(
+                              child: ColorPicker(
                                 pickerColor: pickerColor,
-                                onColorChanged: (c) => pickerColor = c)),
-                        actions: [
-                          TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                notifier.selectColor(pickerColor);
-                              },
-                              child: const Text("OK"))
-                        ],
-                      ));
-                },
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  color: state.selectedColor,
+                                onColorChanged: (c) => pickerColor = c,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  notifier.selectColor(pickerColor);
+                                },
+                                child: const Text("OK"),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        color: state.selectedColor,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: notifier.undo,
+                      icon: const Icon(Icons.undo),
+                    ),
+                    IconButton(
+                      onPressed: notifier.clearAll,
+                      icon: const Icon(Icons.delete),
+                    ),
+                  ],
                 ),
-              ),
-              Slider(
-                value: state.strokeWidth,
-                min: 1,
-                max: 20,
-                onChanged: notifier.setStrokeWidth,
-              ),
-              IconButton(onPressed: notifier.undo, icon: const Icon(Icons.undo)),
-              IconButton(onPressed: notifier.clearAll, icon: const Icon(Icons.delete)),
-            ],
-          ),
-          Expanded(
-            child: GestureDetector(
-              onPanStart: (details) {
-                final pos = details.localPosition;
-                if (state.selectedTool == ShapeType.brush) {
-                  notifier.addPreview(
-                      StrokeAction([pos], state.selectedColor, state.strokeWidth));
-                  lastPoint = pos;
-                } else {
-                  start = pos;
-                }
-              },
-              onPanUpdate: (details) {
-                final pos = details.localPosition;
-                if (state.selectedTool == ShapeType.brush && lastPoint != null) {
-                  final preview = state.preview as StrokeAction;
-                  final points = [...preview.points, pos];
-                  notifier.addPreview(StrokeAction(points, preview.color, preview.strokeWidth));
-                  lastPoint = pos;
-                } else if (start != null) {
-                  notifier.addPreview(
-                      ShapeAction(state.selectedTool, start!, pos, state.selectedColor, state.strokeWidth));
-                }
-              },
-              onPanEnd: (details) {
-                notifier.commitPreview();
-                start = null;
-                lastPoint = null;
-              },
-              child: CustomPaint(
-                painter: _CanvasPainter(state),
-                size: Size.infinite,
-              ),
+
+                Slider(
+                  value: state.strokeWidth,
+                  min: 1,
+                  max: 20,
+                  onChanged: notifier.setStrokeWidth,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onPanStart: (details) {
+                  final pos = details.localPosition;
+                  if (state.selectedTool == ShapeType.brush) {
+                    notifier.addPreview(
+                      StrokeAction(
+                        [pos],
+                        state.selectedColor,
+                        state.strokeWidth,
+                      ),
+                    );
+                    lastPoint = pos;
+                  } else {
+                    start = pos;
+                  }
+                },
+                onPanUpdate: (details) {
+                  final pos = details.localPosition;
+                  if (state.selectedTool == ShapeType.brush &&
+                      lastPoint != null) {
+                    final preview = state.preview as StrokeAction;
+                    final points = [...preview.points, pos];
+                    notifier.addPreview(
+                      StrokeAction(points, preview.color, preview.strokeWidth),
+                    );
+                    lastPoint = pos;
+                  } else if (start != null) {
+                    notifier.addPreview(
+                      ShapeAction(
+                        state.selectedTool,
+                        start!,
+                        pos,
+                        state.selectedColor,
+                        state.strokeWidth,
+                      ),
+                    );
+                  }
+                },
+                onPanEnd: (details) {
+                  notifier.commitPreview();
+                  start = null;
+                  lastPoint = null;
+                },
+                child: CustomPaint(
+                  painter: _CanvasPainter(state),
+                  size: Size.infinite,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -301,7 +396,9 @@ class _CanvasPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(
-        Offset.zero & size, Paint()..color = Colors.white); // background
+      Offset.zero & size,
+      Paint()..color = Colors.white,
+    ); // background
 
     for (final a in state.actions) {
       _drawAction(canvas, a);
@@ -327,8 +424,10 @@ class _CanvasPainter extends CustomPainter {
       double top = boxes.map((r) => r.top).reduce(math.min);
       double right = boxes.map((r) => r.right).reduce(math.max);
       double bottom = boxes.map((r) => r.bottom).reduce(math.max);
-      canvas.drawRect(Rect.fromLTRB(left, top, right, bottom),
-          Paint()..color = Colors.blue.withOpacity(0.3));
+      canvas.drawRect(
+        Rect.fromLTRB(left, top, right, bottom),
+        Paint()..color = Colors.blue.withOpacity(0.3),
+      );
     }
   }
 
@@ -377,28 +476,49 @@ class _CanvasPainter extends CustomPainter {
     canvas.drawLine(start, end, paint);
     final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
     const size = 10.0;
-    final p1 = Offset(end.dx - size * math.cos(angle - math.pi / 6),
-        end.dy - size * math.sin(angle - math.pi / 6));
-    final p2 = Offset(end.dx - size * math.cos(angle + math.pi / 6),
-        end.dy - size * math.sin(angle + math.pi / 6));
+    final p1 = Offset(
+      end.dx - size * math.cos(angle - math.pi / 6),
+      end.dy - size * math.sin(angle - math.pi / 6),
+    );
+    final p2 = Offset(
+      end.dx - size * math.cos(angle + math.pi / 6),
+      end.dy - size * math.sin(angle + math.pi / 6),
+    );
     canvas.drawLine(end, p1, paint);
     canvas.drawLine(end, p2, paint);
   }
 
-  void _drawPolygon(Canvas canvas, Offset start, Offset end, int sides, Paint paint) {
+  void _drawPolygon(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    int sides,
+    Paint paint,
+  ) {
     final center = start;
     final radius = (end - start).distance;
     final path = Path();
     for (int i = 0; i <= sides; i++) {
       final angle = i * 2 * math.pi / sides;
-      final point = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
-      if (i == 0) path.moveTo(point.dx, point.dy);
-      else path.lineTo(point.dx, point.dy);
+      final point = Offset(
+        center.dx + radius * math.cos(angle),
+        center.dy + radius * math.sin(angle),
+      );
+      if (i == 0)
+        path.moveTo(point.dx, point.dy);
+      else
+        path.lineTo(point.dx, point.dy);
     }
     canvas.drawPath(path, paint);
   }
 
-  void _drawStar(Canvas canvas, Offset start, Offset end, int points, Paint paint) {
+  void _drawStar(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    int points,
+    Paint paint,
+  ) {
     final center = start;
     final radius = (end - start).distance;
     final innerRadius = radius / 2.5;
@@ -406,9 +526,14 @@ class _CanvasPainter extends CustomPainter {
     for (int i = 0; i <= points * 2; i++) {
       final r = i.isEven ? radius : innerRadius;
       final angle = i * math.pi / points;
-      final point = Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
-      if (i == 0) path.moveTo(point.dx, point.dy);
-      else path.lineTo(point.dx, point.dy);
+      final point = Offset(
+        center.dx + r * math.cos(angle),
+        center.dy + r * math.sin(angle),
+      );
+      if (i == 0)
+        path.moveTo(point.dx, point.dy);
+      else
+        path.lineTo(point.dx, point.dy);
     }
     canvas.drawPath(path, paint);
   }

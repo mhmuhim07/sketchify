@@ -14,6 +14,9 @@ dependencies:
   flutter_colorpicker: ^1.0.4
   path_provider: ^2.0.14
   share_plus: ^6.3.1
+  flutter_screenutil: ^5.9.3
+  dropdown_button2: ^2.1.0
+
 
 
 dev_dependencies:
@@ -21,9 +24,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^2.0.0
 
-
 flutter:
   uses-material-design: true
+  fonts:
+    - family: SFProDisplay
+      fonts:
+        - asset: assets/fonts/SF-Pro-Display-Regular.otf
 dependency_overrides:
   share_plus:  # or the latest version that supports namespace
 
